@@ -1,0 +1,115 @@
+package com.fams.db;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import javax.swing.JOptionPane;
+import javax.swing.SwingUtilities;
+
+public class DBConnection {
+
+    // CHANGE THESE IF NEEDED
+    private static final String URL      = "jdbc:mysql://localhost:3306/fams?useSSL=false&serverTimezone=UTC";
+    private static final String USER     = "root";
+    private static final String PASSWORD = "";  // put your MySQL password here
+
+    private static Connection connection = null;
+
+    /**
+     * Returns a valid connection.
+     * If connection is null or closed → tries to reconnect.
+     * If fails → shows user-friendly error and returns null.
+     */
+    public static Connection getConnection() {
+        try {
+            if (connection == null || connection.isClosed()) {
+                // Load MySQL Driver (works with both old and new drivers)
+                try {
+                    Class.forName("com.mysql.cj.jdbc.Driver");   // MySQL 8+
+                } catch (ClassNotFoundException ex1) {
+                    try {
+                        Class.forName("com.mysql.jdbc.Driver");  // MySQL 5.x fallback
+                    } catch (ClassNotFoundException ex2) {
+                        showError("MySQL JDBC Driver not found!\n" +
+                                  "Please add mysql-connector-java-x.x.x.jar to your project.");
+                        return null;
+                    }
+                }
+
+                connection = DriverManager.getConnection(URL, USER, PASSWORD);
+                // Success message only once (optional)
+                System.out.println("Database connected successfully!");
+            }
+        } catch (SQLException e) {
+            connection = null; // force retry next time
+            handleSQLException(e);
+        }
+        return connection;
+    }
+
+    private static void showError(String string) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	// Centralized beautiful error handler
+    private static void handleSQLException(SQLException e) {
+        String msg = "";
+        final String title = "Database Connection Failed";
+
+        if (e.getMessage().contains("Communications link failure")) {
+            msg = "Cannot reach the database server.\n" +
+                  "• Is MySQL running?\n" +
+                  "• Is port 3306 open?\n" +
+                  "• Check your internet/firewall.";
+        }
+        else if (e.getMessage().contains("Access denied")) {
+            msg = "Wrong username or password.\n" +
+                  "Current user: " + USER + "\n" +
+                  "Please check your database credentials.";
+        }
+        else if (e.getMessage().contains("Unknown database")) {
+            msg = "Database 'fams' does not exist.\n" +
+                  "Please create the database first or change the URL.";
+        }
+        else {
+            msg = "Connection Error:\n" + e.getMessage();
+        }
+
+        // Show error in a nice dialog (only once per failure)
+        final String finalMsg = msg;
+        SwingUtilities.invokeLater(new Runnable() {
+            public void run() {
+                JOptionPane.showMessageDialog(null,
+                    "<html><font color=#FF4444><b>" + title + "</b></font><br><br>" + finalMsg.replace("\n", "<br>") + "</html>",
+                    "Database Error",
+                    JOptionPane.ERROR_MESSAGE);
+            }
+        });
+
+        // Also print to console for developers
+        System.err.println("Database Error: " + e.getMessage());
+    }
+
+    // Optional: Force close connection (call on app exit)
+    public static void closeConnection() {
+        if (connection != null) {
+            try {
+                connection.close();
+                System.out.println("Database connection closed.");
+            } catch (SQLException e) {
+                System.err.println("Error closing connection: " + e.getMessage());
+            }
+        }
+    }
+
+    // Test method - run this class alone to check connection
+    public static void main(String[] args) {
+        System.out.println("Testing database connection...");
+        Connection conn = getConnection();
+        if (conn != null) {
+            JOptionPane.showMessageDialog(null, "Connection Successful!", "FAMS DB", JOptionPane.INFORMATION_MESSAGE);
+        }
+    }
+}
+
